@@ -1,0 +1,12 @@
+[
+    {
+        "name": "name",
+        "type": "STRING",
+        "mode": "NULLABLE"
+    },
+    {
+        "name": "kokyu",
+        "type": "STRING",
+        "mode": "NULLABLE"
+    }
+]

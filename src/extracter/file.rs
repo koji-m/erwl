@@ -1,40 +1,47 @@
-use crate::cli::{ArgRequired::True, ArgType, Cmd, CmdArg, CmdArgEntry, ParsedArgs};
-use crate::config::Conf;
+use crate::cli::{ArgRequired::True, ArgType, CmdArg, CmdArgEntry};
+use crate::loader::Loader;
+use crate::reader::Reader;
+use crate::writer::Writer;
+use clap::ArgMatches;
+use std::{fs::File, io};
 
 pub struct Extracter {
-    cmd_arg: CmdArg,
-    input_file: Option<String>,
+    input_file_path: String,
 }
 
 impl Extracter {
-    pub fn new() -> Self {
-        let cmd_arg_entries = vec![CmdArgEntry::new(
+    pub fn new(matches: &ArgMatches) -> Self {
+        Self {
+            input_file_path: String::from(matches.value_of("input-file").unwrap()),
+        }
+    }
+
+    pub fn cmd_args() -> CmdArg {
+        CmdArg::new(vec![CmdArgEntry::new(
             "input-file",
             "input file path or '-' for stdin",
             "input-file",
             true,
             True,
             ArgType::String,
-        )];
-        Self {
-            cmd_arg: CmdArg::new(cmd_arg_entries),
-            input_file: None,
-        }
+        )])
     }
 
-    pub fn input_file(&self) -> &Option<String> {
-        &self.input_file
-    }
-}
-
-impl Cmd for Extracter {
-    fn cmd_arg(&self) -> &CmdArg {
-        &self.cmd_arg
-    }
-}
-
-impl Conf for Extracter {
-    fn configure(&mut self, args: &ParsedArgs) {
-        self.input_file = Some(String::from(args.value_of("input-file").unwrap()));
+    pub async fn forward_batches(&self, reader: Reader, writer: Writer, loader: Loader) {
+        if self.input_file_path == "-" {
+            let stdin = io::stdin();
+            let batch_reader = reader.batch_reader(stdin.lock());
+            for (i, batch_) in batch_reader.enumerate() {
+                let cursor = writer.write(batch_.unwrap());
+                loader.load(cursor.into_inner().unwrap(), i).await;
+            }
+        } else {
+            let file = File::open(self.input_file_path.as_str()).unwrap();
+            let batch_reader = reader.batch_reader(file);
+            for (i, batch_) in batch_reader.enumerate() {
+                let cursor = writer.write(batch_.unwrap());
+                loader.load(cursor.into_inner().unwrap(), i).await;
+            }
+        };
     }
 }

@@ -1,2 +1,2 @@
 mod parquet;
-pub use parquet::Writer;
+pub use crate::writer::parquet::Writer;

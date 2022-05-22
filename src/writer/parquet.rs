@@ -1,40 +1,54 @@
-use crate::cli::{ArgRequired::False, ArgType, Cmd, CmdArg, CmdArgEntry, ParsedArgs};
-use crate::config::Conf;
+use crate::cli::{ArgRequired::False, ArgType, CmdArg, CmdArgEntry};
+use clap::ArgMatches;
+
+use arrow::record_batch::RecordBatch;
+use parquet::{
+    arrow::arrow_writer::ArrowWriter,
+    basic::Compression,
+    file::{
+        properties::WriterProperties,
+        writer::{InMemoryWriteableCursor, TryClone},
+    },
+};
 
 pub struct Writer {
-    cmd_arg: CmdArg,
-    compression: Option<String>,
+    properties: WriterProperties,
 }
 
 impl Writer {
-    pub fn new() -> Self {
-        let cmd_arg_entries = vec![CmdArgEntry::new(
+    pub fn new(matches: &ArgMatches) -> Self {
+        let compression = match matches.value_of("compression").unwrap() {
+            "snappy" => Compression::SNAPPY,
+            _ => Compression::SNAPPY,
+        };
+        Self {
+            properties: WriterProperties::builder()
+                .set_compression(compression)
+                .build(),
+        }
+    }
+
+    pub fn cmd_args() -> CmdArg {
+        CmdArg::new(vec![CmdArgEntry::new(
             "compression",
             "Compression type",
             "compression",
             true,
             False(String::from("snappy")),
             ArgType::String,
-        )];
-        Self {
-            cmd_arg: CmdArg::new(cmd_arg_entries),
-            compression: None,
-        }
+        )])
     }
 
-    pub fn compression(&self) -> &Option<String> {
-        &self.compression
-    }
-}
-
-impl Cmd for Writer {
-    fn cmd_arg(&self) -> &CmdArg {
-        &self.cmd_arg
-    }
-}
-
-impl Conf for Writer {
-    fn configure(&mut self, args: &ParsedArgs) {
-        self.compression = Some(String::from(args.value_of("compression").unwrap()));
+    pub fn write(&self, batch: RecordBatch) -> InMemoryWriteableCursor {
+        let cursor = InMemoryWriteableCursor::default();
+        let mut writer = ArrowWriter::try_new(
+            cursor.try_clone().unwrap(),
+            batch.schema(),
+            Some(self.properties.clone()),
+        )
+        .unwrap();
+        writer.write(&batch).expect("Writing batch");
+        writer.close().unwrap();
+        cursor
     }
 }

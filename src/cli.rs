@@ -1,7 +1,4 @@
-use crate::config::Conf;
-use clap::{Arg, ArgMatches, Command};
-
-pub type ParsedArgs = ArgMatches;
+use clap::{Arg, Command};
 
 #[derive(Clone)]
 pub enum ArgType {
@@ -79,9 +76,8 @@ pub fn command<'a>() -> Command<'a> {
         .about("Extract and Load data")
 }
 
-pub fn arg_parse<'a, C: Cmd + Conf>(block: &'a mut C, mut cmd: Command<'a>) -> Command<'a> {
-    let cmd_arg = block.cmd_arg();
-    let args: Vec<Arg> = cmd_arg
+pub fn arg_parse<'a>(cmd_args: &'a CmdArg, mut cmd: Command<'a>) -> Command<'a> {
+    let args: Vec<Arg> = cmd_args
         .entries()
         .iter()
         .map(|e| {
