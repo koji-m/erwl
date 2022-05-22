@@ -3,12 +3,26 @@ name = "erwl"
 version = "0.0.1"
 edition = "2021"
 
+[features]
+sync-extracter = []
+async-extracter = []
+sync-loader = []
+async-loader = []
+sync-reader = []
+async-reader = []
+sync-writer = []
+async-writer = []
+extracter-file = ["sync-extracter"]
+reader-json = ["arrow", "serde", "serde_json", "sync-reader"]
+writer-parquet = ["arrow", "parquet", "sync-writer"]
+loader-s3 = ["aws-config", "aws-sdk-s3", "async-loader"]
+
 [dependencies]
-aws-config = "0.12.0"
-aws-sdk-s3 = "0.12.0"
-arrow = "13.0.0"
+aws-config = { version = "0.12.0", optional = true }
+aws-sdk-s3 = { version = "0.12.0", optional = true }
+arrow = { version = "13.0.0", optional = true }
 clap = "3"
-parquet = "13.0.0"
-serde = { version = "1.0.137", features = ["derive"] }
-serde_json = "1.0.81"
+parquet = {version = "13.0.0", optional = true }
+serde = { version = "1.0.137", features = ["derive"], optional = true }
+serde_json = { version = "1.0.81", optional = true }
 tokio = { version = "1", features = ["full"] }

@@ -25,10 +25,22 @@ async fn main() {
 
     let m = cmd.get_matches();
 
+    #[cfg(feature = "async-extracter")]
+    let extracter = Extracter::new(&m).await;
+    #[cfg(not(feature = "async-extracter"))]
     let extracter = Extracter::new(&m);
+    #[cfg(feature = "async-reader")]
+    let reader = Reader::new(&m).await;
+    #[cfg(not(feature = "async-reader"))]
     let reader = Reader::new(&m);
+    #[cfg(feature = "async-writer")]
+    let writer = Writer::new(&m).await;
+    #[cfg(not(feature = "async-writer"))]
     let writer = Writer::new(&m);
+    #[cfg(feature = "async-loader")]
     let loader = Loader::new(&m).await;
+    #[cfg(not(feature = "async-loader"))]
+    let loader = Loader::new(&m);
 
     extracter.forward_batches(reader, writer, loader).await;
 }
