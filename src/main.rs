@@ -42,5 +42,18 @@ async fn main() {
     #[cfg(not(feature = "async-loader"))]
     let loader = Loader::new(&m);
 
+    #[cfg(any(
+        feature = "async-extracter",
+        feature = "async-reader",
+        feature = "async-writer",
+        feature = "async-loader"
+    ))]
     extracter.forward_batches(reader, writer, loader).await;
+    #[cfg(not(any(
+        feature = "async-extracter",
+        feature = "async-reader",
+        feature = "async-writer",
+        feature = "async-loader"
+    )))]
+    extracter.forward_batches(reader, writer, loader);
 }
