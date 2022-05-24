@@ -2,6 +2,7 @@ mod cli;
 mod extracter;
 mod loader;
 mod reader;
+mod util;
 mod writer;
 
 use cli::{arg_parse, command};
