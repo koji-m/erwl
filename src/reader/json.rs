@@ -2,6 +2,7 @@ use crate::cli::{
     ArgRequired::{False, True},
     ArgType, CmdArg, CmdArgEntry,
 };
+use crate::extracter::Extracter;
 use arrow::{
     datatypes::{DataType, Field, Schema},
     json,
@@ -64,14 +65,16 @@ fn create_field(name: &str, type_: &str, mode: Option<&str>) -> Result<Field, Bo
 pub struct Reader {
     schema_file_path: String,
     decoder_options: DecoderOptions,
+    extracter: Extracter,
 }
 
 impl Reader {
-    pub fn new(matches: &ArgMatches) -> Self {
+    pub fn new(matches: &ArgMatches, extracter: Extracter) -> Self {
         let batch_size: usize = matches.value_of_t("batch-size").unwrap();
         Self {
             schema_file_path: String::from(matches.value_of("schema-file").unwrap()),
             decoder_options: DecoderOptions::new().with_batch_size(batch_size),
+            extracter,
         }
     }
 
@@ -112,8 +115,25 @@ impl Reader {
         Ok(Schema::new(column_definitions))
     }
 
-    pub fn batch_reader<R: Read>(&self, input_file: R) -> json::reader::Reader<R> {
+    #[cfg(feature = "async-extracter")]
+    pub async fn batch_reader(&self) -> json::reader::Reader<Box<dyn Read>> {
+        let batch_extracter = self.extracter.batch_extracter().await;
         let schema = self.get_schema().unwrap();
-        json::reader::Reader::new(input_file, Arc::new(schema), self.decoder_options.clone())
+        json::reader::Reader::new(
+            batch_extracter,
+            Arc::new(schema),
+            self.decoder_options.clone(),
+        )
+    }
+
+    #[cfg(not(feature = "async-extracter"))]
+    pub fn batch_reader(&self) -> json::reader::Reader<Box<dyn Read>> {
+        let batch_extracter = self.extracter.batch_extracter();
+        let schema = self.get_schema().unwrap();
+        json::reader::Reader::new(
+            batch_extracter,
+            Arc::new(schema),
+            self.decoder_options.clone(),
+        )
     }
 }

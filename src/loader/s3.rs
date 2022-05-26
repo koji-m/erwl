@@ -1,4 +1,5 @@
 use crate::cli::{ArgRequired::True, ArgType, CmdArg, CmdArgEntry};
+use crate::writer::Writer;
 use aws_config::meta::region::RegionProviderChain;
 use aws_sdk_s3::{
     types::ByteStream,
@@ -7,37 +8,62 @@ use aws_sdk_s3::{
 use clap::ArgMatches;
 
 pub struct Loader {
-    client: Client,
+    config: aws_types::sdk_config::SdkConfig,
     bucket: String,
     key_prefix: String,
+    writer: Writer,
 }
 
 impl Loader {
-    pub async fn new(matches: &ArgMatches) -> Self {
+    pub async fn new(matches: &ArgMatches, writer: Writer) -> Self {
         let region_provider =
             RegionProviderChain::default_provider().or_else(Region::new("us-east-1"));
-        let config = aws_config::from_env().region(region_provider).load().await;
         Self {
-            client: Client::new(&config),
+            config: aws_config::from_env().region(region_provider).load().await,
             bucket: String::from(matches.value_of("s3-bucket").unwrap()),
             key_prefix: String::from(matches.value_of("key-prefix").unwrap()),
+            writer,
         }
     }
 
-    pub async fn load(&self, bytes: Vec<u8>, suffix: usize) {
+    pub async fn load_batch(
+        bytes: Vec<u8>,
+        key_prefix: &String,
+        suffix: usize,
+        client: &Client,
+        bucket: &String,
+        file_extension: &String,
+    ) {
         let stream = ByteStream::from(bytes);
-        let file = format!("{}{}.parquet", self.key_prefix, suffix);
-        let resp = self
-            .client
+        let file = format!("{}{}.{}", key_prefix, suffix, file_extension);
+        let resp = client
             .put_object()
-            .bucket(&self.bucket)
+            .bucket(bucket)
             .key(&file)
             .body(stream)
             .send()
             .await;
         match resp {
-            Ok(_) => println!("Wrote s3://{}/{}", self.bucket, file),
-            Err(_) => println!("Error write s3://{}/{}", self.bucket, file),
+            Ok(_) => println!("Wrote s3://{}/{}", bucket, file),
+            Err(_) => println!("Error write s3://{}/{}", bucket, file),
+        }
+    }
+
+    pub async fn load(&mut self) {
+        let key_prefix = self.key_prefix.clone();
+        let client = Client::new(&self.config);
+        let bucket = self.bucket.clone();
+        let file_extension = self.writer.file_extension().clone();
+        for (i, cursor) in self.writer.by_ref().enumerate() {
+            Self::load_batch(
+                cursor.into_inner().unwrap(),
+                &key_prefix,
+                i,
+                &client,
+                &bucket,
+                &file_extension,
+            )
+            .await;
         }
     }
 

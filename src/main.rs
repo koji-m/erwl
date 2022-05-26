@@ -2,7 +2,6 @@ mod cli;
 mod extracter;
 mod loader;
 mod reader;
-mod util;
 mod writer;
 
 use cli::{arg_parse, command};
@@ -31,18 +30,24 @@ async fn main() {
     #[cfg(not(feature = "async-extracter"))]
     let extracter = Extracter::new(&m);
     #[cfg(feature = "async-reader")]
-    let reader = Reader::new(&m).await;
+    let reader = Reader::new(&m, extracter).await;
     #[cfg(not(feature = "async-reader"))]
-    let reader = Reader::new(&m);
+    let reader = Reader::new(&m, extracter);
     #[cfg(feature = "async-writer")]
-    let writer = Writer::new(&m).await;
+    let writer = Writer::new(&m, reader).await;
     #[cfg(not(feature = "async-writer"))]
-    let writer = Writer::new(&m);
+    let writer = Writer::new(&m, reader);
     #[cfg(feature = "async-loader")]
-    let loader = Loader::new(&m).await;
+    let mut loader = Loader::new(&m, writer).await;
     #[cfg(not(feature = "async-loader"))]
-    let loader = Loader::new(&m);
+    let mut loader = Loader::new(&m, writer);
 
+    #[cfg(feature = "async-loader")]
+    loader.load().await;
+    #[cfg(not(feature = "async-loader"))]
+    loader.load()
+
+    /*
     #[cfg(any(
         feature = "async-extracter",
         feature = "async-reader",
@@ -57,4 +62,5 @@ async fn main() {
         feature = "async-loader"
     )))]
     extracter.forward_batches(reader, writer, loader);
+    */
 }

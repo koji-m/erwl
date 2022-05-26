@@ -1,10 +1,6 @@
 use crate::cli::{ArgRequired::True, ArgType, CmdArg, CmdArgEntry};
-use crate::loader::Loader;
-use crate::reader::Reader;
-use crate::util::process_batch;
-use crate::writer::Writer;
 use clap::ArgMatches;
-use std::{fs::File, io};
+use std::{fs::File, io, io::Read};
 
 pub struct Extracter {
     input_file_path: String,
@@ -28,35 +24,11 @@ impl Extracter {
         )])
     }
 
-    #[cfg(any(
-        feature = "async-extracter",
-        feature = "async-reader",
-        feature = "async-writer",
-        feature = "async-loader"
-    ))]
-    pub async fn forward_batches(&self, reader: Reader, writer: Writer, loader: Loader) {
+    pub fn batch_extracter(&self) -> Box<dyn Read> {
         if self.input_file_path == "-" {
-            let stdin = io::stdin();
-            process_batch(stdin, reader, writer, loader).await;
+            Box::new(io::stdin())
         } else {
-            let file = File::open(self.input_file_path.as_str()).unwrap();
-            process_batch(file, reader, writer, loader).await;
-        };
-    }
-
-    #[cfg(not(any(
-        feature = "async-extracter",
-        feature = "async-reader",
-        feature = "async-writer",
-        feature = "async-loader"
-    )))]
-    pub fn forward_batches(&self, reader: Reader, writer: Writer, loader: Loader) {
-        if self.input_file_path == "-" {
-            let stdin = io::stdin();
-            process_batch(stdin, reader, writer, loader);
-        } else {
-            let file = File::open(self.input_file_path.as_str()).unwrap();
-            process_batch(file, reader, writer, loader);
-        };
+            Box::new(File::open(self.input_file_path.as_str()).unwrap())
+        }
     }
 }
