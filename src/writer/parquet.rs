@@ -2,8 +2,6 @@ use crate::cli::{ArgRequired::False, ArgType, CmdArg, CmdArgEntry};
 use crate::reader::Reader;
 use clap::ArgMatches;
 
-use arrow::error::ArrowError;
-use arrow::record_batch::RecordBatch;
 use parquet::{
     arrow::arrow_writer::ArrowWriter,
     basic::Compression,
@@ -15,7 +13,7 @@ use parquet::{
 
 pub struct Writer {
     properties: WriterProperties,
-    batch_reader: Box<dyn Iterator<Item = Result<RecordBatch, ArrowError>>>,
+    reader: Reader,
     file_extension: String,
 }
 
@@ -26,12 +24,11 @@ impl Writer {
             "snappy" => Compression::SNAPPY,
             _ => Compression::SNAPPY,
         };
-        let batch_reader = Box::new(reader.batch_reader());
         Self {
             properties: WriterProperties::builder()
                 .set_compression(compression)
                 .build(),
-            batch_reader,
+            reader,
             file_extension: String::from("parquet"),
         }
     }
@@ -42,12 +39,11 @@ impl Writer {
             "snappy" => Compression::SNAPPY,
             _ => Compression::SNAPPY,
         };
-        let batch_reader = Box::new(reader.batch_reader()).await;
         Self {
             properties: WriterProperties::builder()
                 .set_compression(compression)
                 .build(),
-            batch_reader,
+            reader,
             file_extension: String::from("parquet"),
         }
     }
@@ -72,7 +68,7 @@ impl Iterator for Writer {
     type Item = InMemoryWriteableCursor;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if let Some(res) = self.batch_reader.next() {
+        if let Some(res) = self.reader.next() {
             let batch = res.unwrap();
             let cursor = InMemoryWriteableCursor::default();
             let mut writer = ArrowWriter::try_new(

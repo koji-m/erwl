@@ -5,19 +5,15 @@ use crate::cli::{
 use crate::extracter::Extracter;
 use arrow::{
     datatypes::{DataType, Field, Schema},
+    error::ArrowError,
     json,
     json::reader::DecoderOptions,
+    record_batch::RecordBatch,
 };
 use clap::ArgMatches;
 
 use serde::{Deserialize, Serialize};
-use std::{
-    error::Error,
-    fmt,
-    fs::File,
-    io::{BufReader, Read},
-    sync::Arc,
-};
+use std::{error::Error, fmt, fs::File, io::BufReader, sync::Arc};
 
 #[derive(Serialize, Deserialize)]
 struct BigQueryColumnDefinition {
@@ -63,18 +59,20 @@ fn create_field(name: &str, type_: &str, mode: Option<&str>) -> Result<Field, Bo
 }
 
 pub struct Reader {
-    schema_file_path: String,
-    decoder_options: DecoderOptions,
-    extracter: Extracter,
+    batch_reader: Box<dyn Iterator<Item = Result<RecordBatch, ArrowError>>>,
 }
 
 impl Reader {
     pub fn new(matches: &ArgMatches, extracter: Extracter) -> Self {
         let batch_size: usize = matches.value_of_t("batch-size").unwrap();
+        let batch_extracter = extracter.batch_extracter();
+        let schema_file_path = String::from(matches.value_of("schema-file").unwrap());
+        let schema = Self::get_schema(schema_file_path).unwrap();
+        let decoder_options = DecoderOptions::new().with_batch_size(batch_size);
+        let batch_reader =
+            json::reader::Reader::new(batch_extracter, Arc::new(schema), decoder_options);
         Self {
-            schema_file_path: String::from(matches.value_of("schema-file").unwrap()),
-            decoder_options: DecoderOptions::new().with_batch_size(batch_size),
-            extracter,
+            batch_reader: Box::new(batch_reader),
         }
     }
 
@@ -99,9 +97,9 @@ impl Reader {
         ])
     }
 
-    fn get_schema(&self) -> Result<Schema, Box<dyn Error>> {
+    fn get_schema(schema_file_path: String) -> Result<Schema, Box<dyn Error>> {
         let mut column_definitions = vec![];
-        let file = File::open(self.schema_file_path.as_str())?;
+        let file = File::open(schema_file_path.as_str())?;
         let reader = BufReader::new(file);
         let schema: Vec<BigQueryColumnDefinition> = serde_json::from_reader(reader)?;
         for column_definition in &schema {
@@ -115,6 +113,7 @@ impl Reader {
         Ok(Schema::new(column_definitions))
     }
 
+    /*
     #[cfg(feature = "async-extracter")]
     pub async fn batch_reader(&self) -> json::reader::Reader<Box<dyn Read>> {
         let batch_extracter = self.extracter.batch_extracter().await;
@@ -135,5 +134,14 @@ impl Reader {
             Arc::new(schema),
             self.decoder_options.clone(),
         )
+    }
+    */
+}
+
+impl Iterator for Reader {
+    type Item = Result<RecordBatch, ArrowError>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.batch_reader.next()
     }
 }
