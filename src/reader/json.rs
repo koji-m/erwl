@@ -41,11 +41,13 @@ impl Error for UnknownTypeError {
 
 fn create_field(name: &str, type_: &str, mode: Option<&str>) -> Result<Field, Box<dyn Error>> {
     let t = match type_ {
+        "BOOL" => Ok(DataType::Boolean),
         "STRING" => Ok(DataType::Utf8),
         "INTEGER" => Ok(DataType::Int64),
         "FLOAT64" => Ok(DataType::Float64),
         "NUMERIC" => Ok(DataType::Decimal(38, 9)),
         "TIMESTAMP" => Ok(DataType::Timestamp(TimeUnit::Second, None)),
+        "DATE" => Ok(DataType::Date64),
         unknown => Err(UnknownTypeError {
             type_name: String::from(unknown),
         }),
