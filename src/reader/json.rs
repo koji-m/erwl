@@ -4,7 +4,7 @@ use crate::cli::{
 };
 use crate::extracter::Extracter;
 use arrow::{
-    datatypes::{DataType, Field, Schema},
+    datatypes::{DataType, Field, Schema, TimeUnit},
     error::ArrowError,
     json,
     json::reader::DecoderOptions,
@@ -45,6 +45,7 @@ fn create_field(name: &str, type_: &str, mode: Option<&str>) -> Result<Field, Bo
         "INTEGER" => Ok(DataType::Int64),
         "FLOAT64" => Ok(DataType::Float64),
         "NUMERIC" => Ok(DataType::Decimal(38, 9)),
+        "TIMESTAMP" => Ok(DataType::Timestamp(TimeUnit::Second, None)),
         unknown => Err(UnknownTypeError {
             type_name: String::from(unknown),
         }),
