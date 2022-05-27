@@ -44,7 +44,7 @@ fn create_field(name: &str, type_: &str, mode: Option<&str>) -> Result<Field, Bo
         "BOOL" => Ok(DataType::Boolean),
         "STRING" => Ok(DataType::Utf8),
         "INTEGER" => Ok(DataType::Int64),
-        "FLOAT64" => Ok(DataType::Float64),
+        "FLOAT" => Ok(DataType::Float64),
         "NUMERIC" => Ok(DataType::Decimal(38, 9)),
         "TIMESTAMP" => Ok(DataType::Timestamp(TimeUnit::Second, None)),
         "DATE" => Ok(DataType::Date64),
