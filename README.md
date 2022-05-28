@@ -10,7 +10,7 @@ If you want to extract records from a local JSON file and load them into your S3
 
 ```console
 cargo install --git https://github.com/koji-m/erwl \
-    --features reader-json,writer-parquet,extracter-file,loader-s3
+    --features reader-json,writer-parquet,extractor-file,loader-s3
 ```
 
 ## Run

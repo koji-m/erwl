@@ -2,11 +2,11 @@ use crate::cli::{ArgRequired::True, ArgType, CmdArg, CmdArgEntry};
 use clap::ArgMatches;
 use std::{fs::File, io, io::Read};
 
-pub struct Extracter {
+pub struct Extractor {
     input_file_path: String,
 }
 
-impl Extracter {
+impl Extractor {
     pub fn new(matches: &ArgMatches) -> Self {
         Self {
             input_file_path: String::from(matches.value_of("input-file").unwrap()),
@@ -24,7 +24,7 @@ impl Extracter {
         )])
     }
 
-    pub fn batch_extracter(&self) -> Box<dyn Read> {
+    pub fn batch_extractor(&self) -> Box<dyn Read> {
         if self.input_file_path == "-" {
             Box::new(io::stdin())
         } else {

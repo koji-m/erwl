@@ -2,7 +2,7 @@ use crate::cli::{
     ArgRequired::{False, True},
     ArgType, CmdArg, CmdArgEntry,
 };
-use crate::extracter::Extracter;
+use crate::extractor::Extractor;
 use arrow::{
     datatypes::{DataType, Field, Schema, TimeUnit},
     error::ArrowError,
@@ -66,14 +66,14 @@ pub struct Reader {
 }
 
 impl Reader {
-    pub fn new(matches: &ArgMatches, extracter: Extracter) -> Self {
+    pub fn new(matches: &ArgMatches, extractor: Extractor) -> Self {
         let batch_size: usize = matches.value_of_t("batch-size").unwrap();
-        let batch_extracter = extracter.batch_extracter();
+        let batch_extractor = extractor.batch_extractor();
         let schema_file_path = String::from(matches.value_of("schema-file").unwrap());
         let schema = Self::get_schema(schema_file_path).unwrap();
         let decoder_options = DecoderOptions::new().with_batch_size(batch_size);
         let batch_reader =
-            json::reader::Reader::new(batch_extracter, Arc::new(schema), decoder_options);
+            json::reader::Reader::new(batch_extractor, Arc::new(schema), decoder_options);
         Self {
             batch_reader: Box::new(batch_reader),
         }
@@ -115,30 +115,6 @@ impl Reader {
         }
         Ok(Schema::new(column_definitions))
     }
-
-    /*
-    #[cfg(feature = "async-extracter")]
-    pub async fn batch_reader(&self) -> json::reader::Reader<Box<dyn Read>> {
-        let batch_extracter = self.extracter.batch_extracter().await;
-        let schema = self.get_schema().unwrap();
-        json::reader::Reader::new(
-            batch_extracter,
-            Arc::new(schema),
-            self.decoder_options.clone(),
-        )
-    }
-
-    #[cfg(not(feature = "async-extracter"))]
-    pub fn batch_reader(&self) -> json::reader::Reader<Box<dyn Read>> {
-        let batch_extracter = self.extracter.batch_extracter();
-        let schema = self.get_schema().unwrap();
-        json::reader::Reader::new(
-            batch_extracter,
-            Arc::new(schema),
-            self.decoder_options.clone(),
-        )
-    }
-    */
 }
 
 impl Iterator for Reader {

@@ -4,15 +4,15 @@ version = "0.0.1"
 edition = "2021"
 
 [features]
-sync-extracter = []
-async-extracter = []
+sync-extractor = []
+async-extractor = []
 sync-loader = []
 async-loader = []
 sync-reader = []
 async-reader = []
 sync-writer = []
 async-writer = []
-extracter-file = ["sync-extracter"]
+extractor-file = ["sync-extractor"]
 reader-json = ["arrow", "serde", "serde_json", "sync-reader"]
 writer-parquet = ["arrow", "parquet", "sync-writer"]
 loader-s3 = ["aws-config", "aws-sdk-s3", "aws-types", "async-loader"]
