@@ -1,8 +1,10 @@
 use crate::cli::{ArgRequired::True, ArgType, CmdArg, CmdArgEntry};
+use crate::error::LoadError;
 use crate::writer::Writer;
 use aws_config::meta::region::RegionProviderChain;
 use aws_sdk_s3::{
-    types::ByteStream,
+    error::PutObjectError,
+    types::{ByteStream, SdkError},
     {Client, Region},
 };
 use clap::ArgMatches;
@@ -12,6 +14,12 @@ pub struct Loader {
     bucket: String,
     key_prefix: String,
     writer: Writer,
+}
+
+impl From<SdkError<PutObjectError>> for LoadError {
+    fn from(_err: SdkError<PutObjectError>) -> LoadError {
+        LoadError
+    }
 }
 
 impl Loader {
@@ -33,23 +41,20 @@ impl Loader {
         client: &Client,
         bucket: &String,
         file_extension: &String,
-    ) {
+    ) -> Result<(), LoadError> {
         let stream = ByteStream::from(bytes);
         let file = format!("{}{}.{}", key_prefix, suffix, file_extension);
-        let resp = client
+        client
             .put_object()
             .bucket(bucket)
             .key(&file)
             .body(stream)
             .send()
-            .await;
-        match resp {
-            Ok(_) => println!("Wrote s3://{}/{}", bucket, file),
-            Err(_) => println!("Error write s3://{}/{}", bucket, file),
-        }
+            .await?;
+        Ok(())
     }
 
-    pub async fn load(&mut self) {
+    pub async fn load(&mut self) -> Result<(), LoadError> {
         let key_prefix = self.key_prefix.clone();
         let client = Client::new(&self.config);
         let bucket = self.bucket.clone();
@@ -63,8 +68,9 @@ impl Loader {
                 &bucket,
                 &file_extension,
             )
-            .await;
+            .await?;
         }
+        Ok(())
     }
 
     pub fn cmd_args() -> CmdArg {

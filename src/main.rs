@@ -1,17 +1,19 @@
 mod cli;
+mod error;
 mod extractor;
 mod loader;
 mod reader;
 mod writer;
 
 use cli::{arg_parse, command};
+use error::LoadError;
 use extractor::Extractor;
 use loader::Loader;
 use reader::Reader;
 use writer::Writer;
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), LoadError> {
     let extractor_args = Extractor::cmd_args();
     let reader_args = Reader::cmd_args();
     let writer_args = Writer::cmd_args();
@@ -43,7 +45,9 @@ async fn main() {
     let mut loader = Loader::new(&m, writer);
 
     #[cfg(feature = "async-loader")]
-    loader.load().await;
+    loader.load().await?;
     #[cfg(not(feature = "async-loader"))]
-    loader.load()
+    loader.load().unwrap();
+
+    Ok(())
 }
