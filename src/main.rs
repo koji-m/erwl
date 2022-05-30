@@ -3,6 +3,7 @@ mod error;
 mod extractor;
 mod loader;
 mod reader;
+mod util;
 mod writer;
 
 use cli::{arg_parse, command};

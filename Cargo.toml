@@ -15,6 +15,7 @@ async-writer = []
 extractor-file = ["sync-extractor"]
 reader-json = ["arrow", "serde", "serde_json", "sync-reader"]
 writer-parquet = ["arrow", "parquet", "sync-writer"]
+writer-csv = ["arrow", "sync-writer"]
 loader-s3 = ["aws-config", "aws-sdk-s3", "aws-types", "async-loader"]
 loader-gcs = ["google-cloud-auth", "reqwest", "async-loader"]
 

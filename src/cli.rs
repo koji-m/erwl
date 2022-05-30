@@ -1,15 +1,15 @@
 use clap::{Arg, Command};
 
 #[derive(Clone)]
-pub enum ArgType {
-    String,
-    Number,
+pub enum DefaultValue {
+    String(String),
+    Bool(bool),
 }
 
 #[derive(Clone)]
 pub enum ArgRequired {
     True,
-    False(String),
+    False(DefaultValue),
 }
 
 impl ArgRequired {
@@ -28,7 +28,6 @@ pub struct CmdArgEntry {
     pub long: String,
     pub takes_value: bool,
     pub required: ArgRequired,
-    pub type_: ArgType,
 }
 
 impl CmdArgEntry {
@@ -38,7 +37,6 @@ impl CmdArgEntry {
         long: &str,
         takes_value: bool,
         required: ArgRequired,
-        type_: ArgType,
     ) -> Self {
         Self {
             name: String::from(name),
@@ -46,7 +44,6 @@ impl CmdArgEntry {
             long: String::from(long),
             takes_value,
             required,
-            type_,
         }
     }
 }
@@ -88,7 +85,14 @@ pub fn arg_parse<'a>(cmd_args: &'a CmdArg, mut cmd: Command<'a>) -> Command<'a> 
                 .required(e.required.as_bool());
             match e.required {
                 ArgRequired::True => a,
-                ArgRequired::False(ref val) => a.default_value(val.as_str()),
+                ArgRequired::False(ref val) => match val {
+                    DefaultValue::String(s) => a.default_value(s.as_str()),
+                    DefaultValue::Bool(b) => if *b {
+                        a.default_value("true")
+                    } else {
+                        a
+                    }
+                }
             }
         })
         .collect();

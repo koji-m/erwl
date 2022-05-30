@@ -1,4 +1,4 @@
-use crate::cli::{ArgRequired::False, ArgType, CmdArg, CmdArgEntry};
+use crate::cli::{ArgRequired::False, CmdArg, CmdArgEntry, DefaultValue};
 use crate::reader::Reader;
 use clap::ArgMatches;
 
@@ -54,8 +54,7 @@ impl Writer {
             "Compression type",
             "compression",
             true,
-            False(String::from("snappy")),
-            ArgType::String,
+            False(DefaultValue::String(String::from("snappy"))),
         )])
     }
 

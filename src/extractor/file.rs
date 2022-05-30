@@ -1,4 +1,4 @@
-use crate::cli::{ArgRequired::True, ArgType, CmdArg, CmdArgEntry};
+use crate::cli::{ArgRequired::True, CmdArg, CmdArgEntry};
 use clap::ArgMatches;
 use std::{fs::File, io, io::Read};
 
@@ -20,7 +20,6 @@ impl Extractor {
             "input-file",
             true,
             True,
-            ArgType::String,
         )])
     }
 

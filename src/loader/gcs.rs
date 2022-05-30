@@ -1,4 +1,4 @@
-use crate::cli::{ArgRequired::True, ArgType, CmdArg, CmdArgEntry};
+use crate::cli::{ArgRequired::True, CmdArg, CmdArgEntry};
 use crate::error::LoadError;
 use crate::writer::Writer;
 use clap::ArgMatches;
@@ -69,7 +69,6 @@ impl Loader {
                 "gcs-bucket",
                 true,
                 True,
-                ArgType::String,
             ),
             CmdArgEntry::new(
                 "key-prefix",
@@ -77,7 +76,6 @@ impl Loader {
                 "key-prefix",
                 true,
                 True,
-                ArgType::String,
             ),
         ])
     }

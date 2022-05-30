@@ -1,6 +1,7 @@
 use crate::cli::{
     ArgRequired::{False, True},
-    ArgType, CmdArg, CmdArgEntry,
+    CmdArg, CmdArgEntry,
+    DefaultValue,
 };
 use crate::extractor::Extractor;
 use arrow::{
@@ -87,15 +88,13 @@ impl Reader {
                 "schema",
                 true,
                 True,
-                ArgType::String,
             ),
             CmdArgEntry::new(
                 "batch-size",
                 "number of records in each files",
                 "batch-size",
                 true,
-                False(String::from("10000")),
-                ArgType::Number,
+                False(DefaultValue::String(String::from("10000"))),
             ),
         ])
     }
