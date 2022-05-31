@@ -67,8 +67,7 @@ impl Iterator for Writer {
     type Item = InMemoryWriteableCursor;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if let Some(res) = self.reader.next() {
-            let batch = res.unwrap();
+        if let Some(batch) = self.reader.next() {
             let cursor = InMemoryWriteableCursor::default();
             let mut writer = ArrowWriter::try_new(
                 cursor.try_clone().unwrap(),

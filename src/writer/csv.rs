@@ -50,8 +50,7 @@ impl Iterator for Writer {
     type Item = WriteableCursor;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if let Some(res) = self.reader.next() {
-            let batch = res.unwrap();
+        if let Some(batch) = self.reader.next() {
             let cursor = WriteableCursor::default();
             let builder = WriterBuilder::new()
                 .has_headers(self.headers);

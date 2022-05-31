@@ -117,9 +117,13 @@ impl Reader {
 }
 
 impl Iterator for Reader {
-    type Item = Result<RecordBatch, ArrowError>;
+    type Item = RecordBatch;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.batch_reader.next()
+        if let Some(batch_res) = self.batch_reader.next() {
+            Some(batch_res.unwrap())
+        } else {
+            None
+        }
     }
 }
