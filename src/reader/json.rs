@@ -1,16 +1,10 @@
 use crate::cli::{
     ArgRequired::{False, True},
-    CmdArg, CmdArgEntry,
-    DefaultValue,
+    CmdArg, CmdArgEntry, DefaultValue,
 };
 use crate::extractor::Extractor;
 use crate::util::get_schema;
-use arrow::{
-    error::ArrowError,
-    json,
-    json::reader::DecoderOptions,
-    record_batch::RecordBatch,
-};
+use arrow::{error::ArrowError, json, json::reader::DecoderOptions, record_batch::RecordBatch};
 use clap::ArgMatches;
 use std::sync::Arc;
 
@@ -56,10 +50,6 @@ impl Iterator for Reader {
     type Item = RecordBatch;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if let Some(batch_res) = self.batch_reader.next() {
-            Some(batch_res.unwrap())
-        } else {
-            None
-        }
+        self.batch_reader.next().map(|batch_res| batch_res.unwrap())
     }
 }

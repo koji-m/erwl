@@ -75,20 +75,8 @@ impl Loader {
 
     pub fn cmd_args() -> CmdArg {
         CmdArg::new(vec![
-            CmdArgEntry::new(
-                "s3-bucket",
-                "S3 bucket name",
-                "s3-bucket",
-                true,
-                True,
-            ),
-            CmdArgEntry::new(
-                "key-prefix",
-                "S3 key prefix",
-                "key-prefix",
-                true,
-                True,
-            ),
+            CmdArgEntry::new("s3-bucket", "S3 bucket name", "s3-bucket", true, True),
+            CmdArgEntry::new("key-prefix", "S3 key prefix", "key-prefix", true, True),
         ])
     }
 }

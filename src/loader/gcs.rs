@@ -70,13 +70,7 @@ impl Loader {
                 true,
                 True,
             ),
-            CmdArgEntry::new(
-                "key-prefix",
-                "Object key prefix",
-                "key-prefix",
-                true,
-                True,
-            ),
+            CmdArgEntry::new("key-prefix", "Object key prefix", "key-prefix", true, True),
         ])
     }
 }

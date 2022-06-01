@@ -87,12 +87,14 @@ pub fn arg_parse<'a>(cmd_args: &'a CmdArg, mut cmd: Command<'a>) -> Command<'a> 
                 ArgRequired::True => a,
                 ArgRequired::False(ref val) => match val {
                     DefaultValue::String(s) => a.default_value(s.as_str()),
-                    DefaultValue::Bool(b) => if *b {
-                        a.default_value("true")
-                    } else {
-                        a
+                    DefaultValue::Bool(b) => {
+                        if *b {
+                            a.default_value("true")
+                        } else {
+                            a
+                        }
                     }
-                }
+                },
             }
         })
         .collect();

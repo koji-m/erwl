@@ -52,11 +52,8 @@ impl Iterator for Writer {
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(batch) = self.reader.next() {
             let cursor = WriteableCursor::default();
-            let builder = WriterBuilder::new()
-                .has_headers(self.headers);
-            let mut writer = builder.build(
-                cursor.try_clone().unwrap(),
-            );
+            let builder = WriterBuilder::new().has_headers(self.headers);
+            let mut writer = builder.build(cursor.try_clone().unwrap());
             writer.write(&batch).expect("Writing batch");
             Some(cursor)
         } else {

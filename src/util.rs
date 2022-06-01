@@ -1,13 +1,11 @@
-use arrow::{
-    datatypes::{DataType, Field, Schema, TimeUnit},
-};
 use crate::error::UnknownTypeError;
-use std::{
-    io::{BufReader, Cursor, Write, Seek, SeekFrom},
-    fs::File,
-};
-use std::sync::{Arc, Mutex};
+use arrow::datatypes::{DataType, Field, Schema, TimeUnit};
 use serde::{Deserialize, Serialize};
+use std::sync::{Arc, Mutex};
+use std::{
+    fs::File,
+    io::{BufReader, Cursor, Seek, SeekFrom, Write},
+};
 
 #[derive(Serialize, Deserialize)]
 struct BigQueryColumnDefinition {
@@ -16,7 +14,11 @@ struct BigQueryColumnDefinition {
     mode: String,
 }
 
-fn create_field(name: &str, type_: &str, mode: Option<&str>) -> Result<Field, Box<dyn std::error::Error>> {
+fn create_field(
+    name: &str,
+    type_: &str,
+    mode: Option<&str>,
+) -> Result<Field, Box<dyn std::error::Error>> {
     let t = match type_ {
         "BOOL" => Ok(DataType::Boolean),
         "STRING" => Ok(DataType::Utf8),
