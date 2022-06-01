@@ -4,63 +4,15 @@ use crate::cli::{
     DefaultValue,
 };
 use crate::extractor::Extractor;
+use crate::util::get_schema;
 use arrow::{
-    datatypes::{DataType, Field, Schema, TimeUnit},
     error::ArrowError,
     json,
     json::reader::DecoderOptions,
     record_batch::RecordBatch,
 };
 use clap::ArgMatches;
-
-use serde::{Deserialize, Serialize};
-use std::{error::Error, fmt, fs::File, io::BufReader, sync::Arc};
-
-#[derive(Serialize, Deserialize)]
-struct BigQueryColumnDefinition {
-    name: String,
-    r#type: String,
-    mode: String,
-}
-
-#[derive(Debug, Clone)]
-struct UnknownTypeError {
-    type_name: String,
-}
-
-impl fmt::Display for UnknownTypeError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "unknown BigQuery type: {}", self.type_name)
-    }
-}
-
-impl Error for UnknownTypeError {
-    fn description(&self) -> &str {
-        "unknown BigQuery types"
-    }
-}
-
-fn create_field(name: &str, type_: &str, mode: Option<&str>) -> Result<Field, Box<dyn Error>> {
-    let t = match type_ {
-        "BOOL" => Ok(DataType::Boolean),
-        "STRING" => Ok(DataType::Utf8),
-        "INTEGER" => Ok(DataType::Int64),
-        "FLOAT" => Ok(DataType::Float64),
-        "NUMERIC" => Ok(DataType::Decimal(38, 9)),
-        "TIMESTAMP" => Ok(DataType::Timestamp(TimeUnit::Second, None)),
-        "DATE" => Ok(DataType::Date64),
-        unknown => Err(UnknownTypeError {
-            type_name: String::from(unknown),
-        }),
-    }?;
-    let nullable = if let Some(nullable_) = mode {
-        nullable_ == "NULLABLE"
-    } else {
-        false
-    };
-
-    Ok(Field::new(name, t, nullable))
-}
+use std::sync::Arc;
 
 pub struct Reader {
     batch_reader: Box<dyn Iterator<Item = Result<RecordBatch, ArrowError>>>,
@@ -71,7 +23,7 @@ impl Reader {
         let batch_size: usize = matches.value_of_t("batch-size").unwrap();
         let batch_extractor = extractor.batch_extractor();
         let schema_file_path = String::from(matches.value_of("schema-file").unwrap());
-        let schema = Self::get_schema(schema_file_path).unwrap();
+        let schema = get_schema(schema_file_path).unwrap();
         let decoder_options = DecoderOptions::new().with_batch_size(batch_size);
         let batch_reader =
             json::reader::Reader::new(batch_extractor, Arc::new(schema), decoder_options);
@@ -97,22 +49,6 @@ impl Reader {
                 False(DefaultValue::String(String::from("10000"))),
             ),
         ])
-    }
-
-    fn get_schema(schema_file_path: String) -> Result<Schema, Box<dyn Error>> {
-        let mut column_definitions = vec![];
-        let file = File::open(schema_file_path.as_str())?;
-        let reader = BufReader::new(file);
-        let schema: Vec<BigQueryColumnDefinition> = serde_json::from_reader(reader)?;
-        for column_definition in &schema {
-            let field = create_field(
-                &column_definition.name,
-                &column_definition.r#type,
-                Some(&column_definition.mode),
-            )?;
-            column_definitions.push(field);
-        }
-        Ok(Schema::new(column_definitions))
     }
 }
 
