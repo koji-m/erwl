@@ -17,6 +17,7 @@ reader-csv = ["sync-reader"]
 reader-json = ["sync-reader"]
 writer-parquet = ["parquet", "sync-writer"]
 writer-csv = ["sync-writer"]
+writer-json = ["sync-writer"]
 loader-s3 = ["aws-config", "aws-sdk-s3", "aws-types", "async-loader"]
 loader-gcs = ["google-cloud-auth", "reqwest", "async-loader"]
 

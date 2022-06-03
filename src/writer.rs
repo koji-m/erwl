@@ -6,6 +6,10 @@ pub use crate::writer::parquet::Writer;
 mod csv;
 #[cfg(feature = "writer-csv")]
 pub use crate::writer::csv::Writer;
+#[cfg(feature = "writer-json")]
+mod json;
+#[cfg(feature = "writer-json")]
+pub use crate::writer::json::Writer;
 
 #[cfg(not(any(feature = "sync-writer", feature = "async-writer")))]
 compile_error!("feature writer-* not enabled.");
