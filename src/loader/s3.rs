@@ -1,5 +1,6 @@
 use crate::cli::{ArgRequired::True, CmdArg, CmdArgEntry};
 use crate::error::LoadError;
+use crate::util::WriteableCursor;
 use crate::writer::Writer;
 use aws_config::meta::region::RegionProviderChain;
 use aws_sdk_s3::{
@@ -14,6 +15,7 @@ pub struct Loader {
     bucket: String,
     key_prefix: String,
     writer: Writer,
+    load_size: usize,
 }
 
 impl From<SdkError<PutObjectError>> for LoadError {
@@ -31,6 +33,7 @@ impl Loader {
             bucket: String::from(matches.value_of("s3-bucket").unwrap()),
             key_prefix: String::from(matches.value_of("key-prefix").unwrap()),
             writer,
+            load_size: matches.value_of_t("load-size").unwrap(),
         }
     }
 
@@ -59,7 +62,10 @@ impl Loader {
         let client = Client::new(&self.config);
         let bucket = self.bucket.clone();
         let file_extension = self.writer.file_extension().clone();
-        for (i, cursor) in self.writer.by_ref().enumerate() {
+        for i in 0.. {
+            let cursor = WriteableCursor::default();
+            let wrote = self.writer.write(&cursor, self.load_size);
+            if wrote < 1 { break; }
             Self::load_batch(
                 cursor.into_inner().unwrap(),
                 &key_prefix,
@@ -77,6 +83,7 @@ impl Loader {
         CmdArg::new(vec![
             CmdArgEntry::new("s3-bucket", "S3 bucket name", "s3-bucket", true, True),
             CmdArgEntry::new("key-prefix", "S3 key prefix", "key-prefix", true, True),
+            CmdArgEntry::new("load-size", "number of records in a batch", "load-size", true, True),
         ])
     }
 }

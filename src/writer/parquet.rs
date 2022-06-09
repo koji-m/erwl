@@ -1,5 +1,10 @@
+use arrow::{
+    record_batch::RecordBatch,
+    datatypes::SchemaRef
+};
 use crate::cli::{ArgRequired::False, CmdArg, CmdArgEntry, DefaultValue};
 use crate::reader::Reader;
+use crate::util::WriteableCursor;
 use clap::ArgMatches;
 
 use parquet::{
@@ -7,7 +12,6 @@ use parquet::{
     basic::Compression,
     file::{
         properties::WriterProperties,
-        writer::{InMemoryWriteableCursor, TryClone},
     },
 };
 
@@ -15,6 +19,9 @@ pub struct Writer {
     properties: WriterProperties,
     reader: Reader,
     file_extension: String,
+    current_batch: Option<RecordBatch>,
+    current_offset: usize,
+    schema: Option<SchemaRef>,
 }
 
 impl Writer {
@@ -30,6 +37,9 @@ impl Writer {
                 .build(),
             reader,
             file_extension: String::from("parquet"),
+            current_batch: None,
+            current_offset: 0,
+            schema:None,
         }
     }
 
@@ -45,6 +55,9 @@ impl Writer {
                 .build(),
             reader,
             file_extension: String::from("parquet"),
+            current_batch: None,
+            current_offset: 0,
+            schema:None,
         }
     }
 
@@ -61,14 +74,37 @@ impl Writer {
     pub fn file_extension(&self) -> &String {
         &self.file_extension
     }
-}
 
-impl Iterator for Writer {
-    type Item = InMemoryWriteableCursor;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if let Some(batch) = self.reader.next() {
-            let cursor = InMemoryWriteableCursor::default();
+    pub fn write(&mut self, cursor: &WriteableCursor, size: usize) -> usize {
+        let mut rows_need = size;
+        let mut batches = Vec::new();
+        while rows_need > 0 {
+            if let Some(batch) = &self.current_batch {
+                let residue = batch.num_rows() - self.current_offset;
+                if residue > rows_need {
+                    let sliced = batch.slice(self.current_offset, rows_need);
+                    batches.push(sliced);
+                    self.current_offset += rows_need;
+                    rows_need = 0;
+                } else {
+                    let sliced = batch.slice(self.current_offset, residue);
+                    batches.push(sliced);
+                    rows_need -= residue;
+                    self.current_offset = 0;
+                    self.current_batch = self.reader.next();
+                }
+            } else if let Some(batch) = self.reader.next() {
+                self.schema = Some(batch.schema());
+                self.current_batch = Some(batch);
+                self.current_offset = 0;
+            } else {
+                break;
+            }
+        }
+        if batches.is_empty() {
+            size - rows_need
+        } else {
+            let batch = RecordBatch::concat(&self.schema.as_ref().unwrap(), &batches).unwrap();
             let mut writer = ArrowWriter::try_new(
                 cursor.try_clone().unwrap(),
                 batch.schema(),
@@ -77,9 +113,7 @@ impl Iterator for Writer {
             .unwrap();
             writer.write(&batch).expect("Writing batch");
             writer.close().unwrap();
-            Some(cursor)
-        } else {
-            None
+            size - rows_need
         }
     }
 }
