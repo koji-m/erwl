@@ -1,5 +1,7 @@
 use crate::error::UnknownTypeError;
+use crate::reader::Reader;
 use arrow::datatypes::{DataType, Field, Schema, TimeUnit};
+use arrow::{datatypes::SchemaRef, record_batch::RecordBatch};
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
 use std::{
@@ -92,5 +94,52 @@ impl Seek for WriteableCursor {
     fn seek(&mut self, pos: SeekFrom) -> std::io::Result<u64> {
         let mut inner = self.buffer.lock().unwrap();
         inner.seek(pos)
+    }
+}
+
+pub trait WriteBatch {
+    fn current_batch(&self) -> &Option<RecordBatch>;
+    fn current_batch_mut(&mut self) -> &mut Option<RecordBatch>;
+    fn current_offset(&self) -> usize;
+    fn current_offset_mut(&mut self) -> &mut usize;
+    fn reader_mut(&mut self) -> &mut Reader;
+    fn schema(&self) -> &Option<SchemaRef>;
+    fn schema_mut(&mut self) -> &mut Option<SchemaRef>;
+    fn file_extension(&self) -> &String;
+    fn write_batch(&self, batch: RecordBatch, cursor: &WriteableCursor);
+
+    fn write(&mut self, cursor: &WriteableCursor, size: usize) -> usize {
+        let mut rows_need = size;
+        let mut batches = Vec::new();
+        while rows_need > 0 {
+            if let Some(batch) = self.current_batch() {
+                let residue = batch.num_rows() - self.current_offset();
+                if residue > rows_need {
+                    let sliced = batch.slice(self.current_offset(), rows_need);
+                    batches.push(sliced);
+                    *self.current_offset_mut() += rows_need;
+                    rows_need = 0;
+                } else {
+                    let sliced = batch.slice(self.current_offset(), residue);
+                    batches.push(sliced);
+                    rows_need -= residue;
+                    *self.current_offset_mut() = 0;
+                    *self.current_batch_mut() = self.reader_mut().next();
+                }
+            } else if let Some(batch) = self.reader_mut().next() {
+                *self.schema_mut() = Some(batch.schema());
+                *self.current_batch_mut() = Some(batch);
+                *self.current_offset_mut() = 0;
+            } else {
+                break;
+            }
+        }
+        if batches.is_empty() {
+            size - rows_need
+        } else {
+            let batch = RecordBatch::concat(self.schema().as_ref().unwrap(), &batches).unwrap();
+            self.write_batch(batch, cursor);
+            size - rows_need
+        }
     }
 }

@@ -1,18 +1,11 @@
-use arrow::{
-    record_batch::RecordBatch,
-    datatypes::SchemaRef
-};
 use crate::cli::{ArgRequired::False, CmdArg, CmdArgEntry, DefaultValue};
 use crate::reader::Reader;
-use crate::util::WriteableCursor;
+use crate::util::{WriteBatch, WriteableCursor};
+use arrow::{datatypes::SchemaRef, record_batch::RecordBatch};
 use clap::ArgMatches;
 
 use parquet::{
-    arrow::arrow_writer::ArrowWriter,
-    basic::Compression,
-    file::{
-        properties::WriterProperties,
-    },
+    arrow::arrow_writer::ArrowWriter, basic::Compression, file::properties::WriterProperties,
 };
 
 pub struct Writer {
@@ -39,7 +32,7 @@ impl Writer {
             file_extension: String::from("parquet"),
             current_batch: None,
             current_offset: 0,
-            schema:None,
+            schema: None,
         }
     }
 
@@ -57,7 +50,7 @@ impl Writer {
             file_extension: String::from("parquet"),
             current_batch: None,
             current_offset: 0,
-            schema:None,
+            schema: None,
         }
     }
 
@@ -70,50 +63,49 @@ impl Writer {
             False(DefaultValue::String(String::from("snappy"))),
         )])
     }
+}
 
-    pub fn file_extension(&self) -> &String {
+impl WriteBatch for Writer {
+    fn current_batch(&self) -> &Option<RecordBatch> {
+        &self.current_batch
+    }
+
+    fn current_batch_mut(&mut self) -> &mut Option<RecordBatch> {
+        &mut self.current_batch
+    }
+
+    fn current_offset(&self) -> usize {
+        self.current_offset
+    }
+
+    fn current_offset_mut(&mut self) -> &mut usize {
+        &mut self.current_offset
+    }
+
+    fn reader_mut(&mut self) -> &mut Reader {
+        &mut self.reader
+    }
+
+    fn schema(&self) -> &Option<SchemaRef> {
+        &self.schema
+    }
+
+    fn schema_mut(&mut self) -> &mut Option<SchemaRef> {
+        &mut self.schema
+    }
+
+    fn file_extension(&self) -> &String {
         &self.file_extension
     }
 
-    pub fn write(&mut self, cursor: &WriteableCursor, size: usize) -> usize {
-        let mut rows_need = size;
-        let mut batches = Vec::new();
-        while rows_need > 0 {
-            if let Some(batch) = &self.current_batch {
-                let residue = batch.num_rows() - self.current_offset;
-                if residue > rows_need {
-                    let sliced = batch.slice(self.current_offset, rows_need);
-                    batches.push(sliced);
-                    self.current_offset += rows_need;
-                    rows_need = 0;
-                } else {
-                    let sliced = batch.slice(self.current_offset, residue);
-                    batches.push(sliced);
-                    rows_need -= residue;
-                    self.current_offset = 0;
-                    self.current_batch = self.reader.next();
-                }
-            } else if let Some(batch) = self.reader.next() {
-                self.schema = Some(batch.schema());
-                self.current_batch = Some(batch);
-                self.current_offset = 0;
-            } else {
-                break;
-            }
-        }
-        if batches.is_empty() {
-            size - rows_need
-        } else {
-            let batch = RecordBatch::concat(&self.schema.as_ref().unwrap(), &batches).unwrap();
-            let mut writer = ArrowWriter::try_new(
-                cursor.try_clone().unwrap(),
-                batch.schema(),
-                Some(self.properties.clone()),
-            )
-            .unwrap();
-            writer.write(&batch).expect("Writing batch");
-            writer.close().unwrap();
-            size - rows_need
-        }
+    fn write_batch(&self, batch: RecordBatch, cursor: &WriteableCursor) {
+        let mut writer = ArrowWriter::try_new(
+            cursor.try_clone().unwrap(),
+            batch.schema(),
+            Some(self.properties.clone()),
+        )
+        .unwrap();
+        writer.write(&batch).expect("Writing batch");
+        writer.close().unwrap();
     }
 }

@@ -1,6 +1,6 @@
 use crate::cli::{ArgRequired::True, CmdArg, CmdArgEntry};
 use crate::error::LoadError;
-use crate::util::WriteableCursor;
+use crate::util::{WriteBatch, WriteableCursor};
 use crate::writer::Writer;
 use aws_config::meta::region::RegionProviderChain;
 use aws_sdk_s3::{
@@ -65,7 +65,9 @@ impl Loader {
         for i in 0.. {
             let cursor = WriteableCursor::default();
             let wrote = self.writer.write(&cursor, self.load_size);
-            if wrote < 1 { break; }
+            if wrote < 1 {
+                break;
+            }
             Self::load_batch(
                 cursor.into_inner().unwrap(),
                 &key_prefix,
@@ -83,7 +85,13 @@ impl Loader {
         CmdArg::new(vec![
             CmdArgEntry::new("s3-bucket", "S3 bucket name", "s3-bucket", true, True),
             CmdArgEntry::new("key-prefix", "S3 key prefix", "key-prefix", true, True),
-            CmdArgEntry::new("load-size", "number of records in a batch", "load-size", true, True),
+            CmdArgEntry::new(
+                "load-size",
+                "number of records in a batch",
+                "load-size",
+                true,
+                True,
+            ),
         ])
     }
 }
