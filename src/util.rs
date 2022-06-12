@@ -134,12 +134,21 @@ pub trait WriteBatch {
                 break;
             }
         }
-        if batches.is_empty() {
-            size - rows_need
-        } else {
-            let batch = RecordBatch::concat(self.schema().as_ref().unwrap(), &batches).unwrap();
-            self.write_batch(batch, cursor);
-            size - rows_need
-        }
+        let batch = RecordBatch::concat(self.schema().as_ref().unwrap(), &batches).unwrap();
+        self.write_batch(batch, cursor);
+        size - rows_need
+    }
+
+    fn write_all(&mut self, cursor: &WriteableCursor) -> usize {
+        let mut batches = Vec::new();
+        let mut num_rows_wrote = 0;
+        while let Some(batch) = self.reader_mut().next() {
+            *self.schema_mut() = Some(batch.schema());
+            num_rows_wrote += batch.num_rows();
+            batches.push(batch);
+        } 
+        let batch = RecordBatch::concat(self.schema().as_ref().unwrap(), &batches).unwrap();
+        self.write_batch(batch, cursor);
+        num_rows_wrote
     }
 }
