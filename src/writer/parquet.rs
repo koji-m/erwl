@@ -1,20 +1,20 @@
 use crate::cli::{ArgRequired::False, CmdArg, CmdArgEntry, DefaultValue};
 use crate::reader::Reader;
+use crate::util::{WriteBatch, WriteableCursor};
+use arrow::{datatypes::SchemaRef, record_batch::RecordBatch};
 use clap::ArgMatches;
 
 use parquet::{
-    arrow::arrow_writer::ArrowWriter,
-    basic::Compression,
-    file::{
-        properties::WriterProperties,
-        writer::{InMemoryWriteableCursor, TryClone},
-    },
+    arrow::arrow_writer::ArrowWriter, basic::Compression, file::properties::WriterProperties,
 };
 
 pub struct Writer {
     properties: WriterProperties,
     reader: Reader,
     file_extension: String,
+    current_batch: Option<RecordBatch>,
+    current_offset: usize,
+    schema: Option<SchemaRef>,
 }
 
 impl Writer {
@@ -30,6 +30,9 @@ impl Writer {
                 .build(),
             reader,
             file_extension: String::from("parquet"),
+            current_batch: None,
+            current_offset: 0,
+            schema: None,
         }
     }
 
@@ -45,6 +48,9 @@ impl Writer {
                 .build(),
             reader,
             file_extension: String::from("parquet"),
+            current_batch: None,
+            current_offset: 0,
+            schema: None,
         }
     }
 
@@ -57,29 +63,49 @@ impl Writer {
             False(DefaultValue::String(String::from("snappy"))),
         )])
     }
-
-    pub fn file_extension(&self) -> &String {
-        &self.file_extension
-    }
 }
 
-impl Iterator for Writer {
-    type Item = InMemoryWriteableCursor;
+impl WriteBatch for Writer {
+    fn current_batch(&self) -> &Option<RecordBatch> {
+        &self.current_batch
+    }
 
-    fn next(&mut self) -> Option<Self::Item> {
-        if let Some(batch) = self.reader.next() {
-            let cursor = InMemoryWriteableCursor::default();
-            let mut writer = ArrowWriter::try_new(
-                cursor.try_clone().unwrap(),
-                batch.schema(),
-                Some(self.properties.clone()),
-            )
-            .unwrap();
-            writer.write(&batch).expect("Writing batch");
-            writer.close().unwrap();
-            Some(cursor)
-        } else {
-            None
-        }
+    fn current_batch_mut(&mut self) -> &mut Option<RecordBatch> {
+        &mut self.current_batch
+    }
+
+    fn current_offset(&self) -> usize {
+        self.current_offset
+    }
+
+    fn current_offset_mut(&mut self) -> &mut usize {
+        &mut self.current_offset
+    }
+
+    fn reader_mut(&mut self) -> &mut Reader {
+        &mut self.reader
+    }
+
+    fn schema(&self) -> &Option<SchemaRef> {
+        &self.schema
+    }
+
+    fn schema_mut(&mut self) -> &mut Option<SchemaRef> {
+        &mut self.schema
+    }
+
+    fn file_extension(&self) -> &String {
+        &self.file_extension
+    }
+
+    fn write_batch(&self, batch: RecordBatch, cursor: &WriteableCursor) {
+        let mut writer = ArrowWriter::try_new(
+            cursor.try_clone().unwrap(),
+            batch.schema(),
+            Some(self.properties.clone()),
+        )
+        .unwrap();
+        writer.write(&batch).expect("Writing batch");
+        writer.close().unwrap();
     }
 }
