@@ -27,7 +27,7 @@ fn create_field(
         "INTEGER" => Ok(DataType::Int64),
         "FLOAT" => Ok(DataType::Float64),
         "NUMERIC" => Ok(DataType::Decimal(38, 9)),
-        "TIMESTAMP" => Ok(DataType::Timestamp(TimeUnit::Second, None)),
+        "TIMESTAMP" => Ok(DataType::Timestamp(TimeUnit::Microsecond, None)),
         "DATE" => Ok(DataType::Date64),
         unknown => Err(UnknownTypeError {
             type_name: String::from(unknown),
