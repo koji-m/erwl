@@ -1,5 +1,10 @@
+use arrow::{
+    record_batch::RecordBatch,
+    datatypes::SchemaRef,
+};
 use crate::cli::{ArgRequired::True, CmdArg, CmdArgEntry};
 use crate::error::LoadError;
+use crate::extractor::Extractor;
 use crate::util::{WriteBatch, WriteableCursor};
 use crate::writer::Writer;
 use aws_config::meta::region::RegionProviderChain;
@@ -15,7 +20,11 @@ pub struct Loader {
     bucket: String,
     key_prefix: String,
     writer: Writer,
+    extractor: Extractor,
     load_size: usize,
+    current_batch: Option<RecordBatch>,
+    current_offset: usize,
+    schema: Option<SchemaRef>,
 }
 
 impl From<SdkError<PutObjectError>> for LoadError {
@@ -25,7 +34,7 @@ impl From<SdkError<PutObjectError>> for LoadError {
 }
 
 impl Loader {
-    pub async fn new(matches: &ArgMatches, writer: Writer) -> Self {
+    pub async fn new(matches: &ArgMatches, writer: Writer, extractor: Extractor) -> Self {
         let region_provider =
             RegionProviderChain::default_provider().or_else(Region::new("us-east-1"));
         Self {
@@ -33,7 +42,11 @@ impl Loader {
             bucket: String::from(matches.value_of("s3-bucket").unwrap()),
             key_prefix: String::from(matches.value_of("key-prefix").unwrap()),
             writer,
+            extractor,
             load_size: matches.value_of_t("load-size").unwrap(),
+            current_batch: None,
+            current_offset: 0,
+            schema: None,
         }
     }
 
@@ -57,6 +70,8 @@ impl Loader {
         Ok(())
     }
 
+    
+
     pub async fn load(&mut self) -> Result<(), LoadError> {
         let key_prefix = self.key_prefix.clone();
         let client = Client::new(&self.config);
@@ -64,7 +79,7 @@ impl Loader {
         let file_extension = self.writer.file_extension().clone();
         for i in 0.. {
             let cursor = WriteableCursor::default();
-            let wrote = self.writer.write(&cursor, self.load_size);
+            let wrote = self.write(&cursor, self.load_size);
             if wrote < 1 {
                 break;
             }
@@ -93,5 +108,43 @@ impl Loader {
                 True,
             ),
         ])
+    }
+}
+
+impl WriteBatch for Loader {
+    fn current_batch(&self) -> &Option<RecordBatch> {
+        &self.current_batch
+    }
+
+    fn current_batch_mut(&mut self) -> &mut Option<RecordBatch> {
+        &mut self.current_batch
+    }
+
+    fn current_offset(&self) -> usize {
+        self.current_offset
+    }
+
+    fn current_offset_mut(&mut self) -> &mut usize {
+        &mut self.current_offset
+    }
+
+    fn extractor_mut(&mut self) -> &mut Extractor {
+        &mut self.extractor
+    }
+
+    fn writer(&self) -> &Writer {
+        &self.writer
+    }
+
+    fn schema(&self) -> &Option<SchemaRef> {
+        &self.schema
+    }
+
+    fn schema_mut(&mut self) -> &mut Option<SchemaRef> {
+        &mut self.schema
+    }
+
+    fn file_extension(&self) -> &String {
+        self.writer.file_extension()
     }
 }

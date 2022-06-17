@@ -1,5 +1,6 @@
 use crate::error::UnknownTypeError;
-use crate::reader::Reader;
+use crate::extractor::Extractor;
+use crate::writer::Writer;
 use arrow::datatypes::{DataType, Field, Schema, TimeUnit};
 use arrow::{datatypes::SchemaRef, record_batch::RecordBatch};
 use serde::{Deserialize, Serialize};
@@ -102,11 +103,11 @@ pub trait WriteBatch {
     fn current_batch_mut(&mut self) -> &mut Option<RecordBatch>;
     fn current_offset(&self) -> usize;
     fn current_offset_mut(&mut self) -> &mut usize;
-    fn reader_mut(&mut self) -> &mut Reader;
+    fn writer(&self) -> &Writer;
+    fn extractor_mut(&mut self) -> &mut Extractor;
     fn schema(&self) -> &Option<SchemaRef>;
     fn schema_mut(&mut self) -> &mut Option<SchemaRef>;
     fn file_extension(&self) -> &String;
-    fn write_batch(&self, batch: RecordBatch, cursor: &WriteableCursor);
 
     fn write(&mut self, cursor: &WriteableCursor, size: usize) -> usize {
         let mut rows_need = size;
@@ -124,9 +125,9 @@ pub trait WriteBatch {
                     batches.push(sliced);
                     rows_need -= residue;
                     *self.current_offset_mut() = 0;
-                    *self.current_batch_mut() = self.reader_mut().next();
+                    *self.current_batch_mut() = self.extractor_mut().next();
                 }
-            } else if let Some(batch) = self.reader_mut().next() {
+            } else if let Some(batch) = self.extractor_mut().next() {
                 *self.schema_mut() = Some(batch.schema());
                 *self.current_batch_mut() = Some(batch);
                 *self.current_offset_mut() = 0;
@@ -135,20 +136,20 @@ pub trait WriteBatch {
             }
         }
         let batch = RecordBatch::concat(self.schema().as_ref().unwrap(), &batches).unwrap();
-        self.write_batch(batch, cursor);
+        self.writer().write_batch(batch, cursor);
         size - rows_need
     }
 
     fn write_all(&mut self, cursor: &WriteableCursor) -> usize {
         let mut batches = Vec::new();
         let mut num_rows_wrote = 0;
-        while let Some(batch) = self.reader_mut().next() {
+        while let Some(batch) = self.extractor_mut().next() {
             *self.schema_mut() = Some(batch.schema());
             num_rows_wrote += batch.num_rows();
             batches.push(batch);
         } 
         let batch = RecordBatch::concat(self.schema().as_ref().unwrap(), &batches).unwrap();
-        self.write_batch(batch, cursor);
+        self.writer().write_batch(batch, cursor);
         num_rows_wrote
     }
 }

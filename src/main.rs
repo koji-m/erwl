@@ -28,22 +28,23 @@ async fn main() -> Result<(), LoadError> {
 
     let m = cmd.get_matches();
 
-    #[cfg(feature = "async-extractor")]
-    let extractor = Extractor::new(&m).await;
-    #[cfg(not(feature = "async-extractor"))]
-    let extractor = Extractor::new(&m);
     #[cfg(feature = "async-reader")]
-    let reader = Reader::new(&m, extractor).await;
+    let reader = Reader::new(&m).await;
     #[cfg(not(feature = "async-reader"))]
-    let reader = Reader::new(&m, extractor);
+    let reader = Reader::new(&m);
+    #[cfg(feature = "async-extractor")]
+    let extractor = Extractor::new(&m, reader).await;
+    #[cfg(not(feature = "async-extractor"))]
+    let extractor = Extractor::new(&m, reader);
+    
     #[cfg(feature = "async-writer")]
-    let writer = Writer::new(&m, reader).await;
+    let writer = Writer::new(&m).await;
     #[cfg(not(feature = "async-writer"))]
-    let writer = Writer::new(&m, reader);
+    let writer = Writer::new(&m);
     #[cfg(feature = "async-loader")]
-    let mut loader = Loader::new(&m, writer).await;
+    let mut loader = Loader::new(&m, writer, extractor).await;
     #[cfg(not(feature = "async-loader"))]
-    let mut loader = Loader::new(&m, writer);
+    let mut loader = Loader::new(&m, writer, extractor);
 
     #[cfg(feature = "async-loader")]
     loader.load().await?;

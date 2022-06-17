@@ -2,27 +2,32 @@ use crate::cli::{
     ArgRequired::{False, True},
     CmdArg, CmdArgEntry, DefaultValue,
 };
-use crate::extractor::Extractor;
 use crate::util::get_schema;
-use arrow::{error::ArrowError, json, json::reader::DecoderOptions, record_batch::RecordBatch};
+use arrow::{
+    datatypes::Schema,
+    error::ArrowError,
+    json,
+    json::reader::DecoderOptions,
+    record_batch::RecordBatch,
+};
 use clap::ArgMatches;
 use std::sync::Arc;
+use std::io::Read;
 
 pub struct Reader {
-    batch_reader: Box<dyn Iterator<Item = Result<RecordBatch, ArrowError>>>,
+    batch_reader: Option<Box<dyn Iterator<Item = Result<RecordBatch, ArrowError>>>>,
+    schema: Schema,
+    decoder_options: DecoderOptions,
 }
 
 impl Reader {
-    pub fn new(matches: &ArgMatches, extractor: Extractor) -> Self {
+    pub fn new(matches: &ArgMatches) -> Self {
         let batch_size: usize = matches.value_of_t("batch-size").unwrap();
-        let batch_extractor = extractor.batch_extractor();
         let schema_file_path = String::from(matches.value_of("schema-file").unwrap());
-        let schema = get_schema(schema_file_path).unwrap();
-        let decoder_options = DecoderOptions::new().with_batch_size(batch_size);
-        let batch_reader =
-            json::reader::Reader::new(batch_extractor, Arc::new(schema), decoder_options);
         Self {
-            batch_reader: Box::new(batch_reader),
+            batch_reader: None,
+            schema: get_schema(schema_file_path).unwrap(),
+            decoder_options: DecoderOptions::new().with_batch_size(batch_size),
         }
     }
 
@@ -44,12 +49,16 @@ impl Reader {
             ),
         ])
     }
+
+    pub fn init(&mut self, extractor: Box<dyn Read>) {
+        self.batch_reader = Some(Box::new(json::reader::Reader::new(extractor, Arc::new(self.schema.clone()), self.decoder_options.clone())));
+    }
 }
 
 impl Iterator for Reader {
     type Item = RecordBatch;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.batch_reader.next().map(|batch_res| batch_res.unwrap())
+        self.batch_reader.as_mut().unwrap().next().map(|batch_res| batch_res.unwrap())
     }
 }
