@@ -1,71 +1,79 @@
+use crate::cli::{ArgRequired, CmdArg, CmdArgEntry};
+use crate::error::GenericError;
+use crate::reader;
 use arrow::record_batch::RecordBatch;
-use crate::cli::{ArgRequired::True, CmdArg, CmdArgEntry};
-use crate::reader::Reader;
 use clap::ArgMatches;
+use futures::channel::mpsc;
+use futures::stream::{self, StreamExt};
+use futures::SinkExt;
 use std::{fs::File, io, io::Read};
+use std::future::Future;
 
 pub struct Extractor {
-    input_file_paths: Vec<String>,
-    reader: Reader,
+    file_paths: Vec<String>,
+    reader: reader::Reader,
 }
 
 impl Extractor {
-    pub fn new(matches: &ArgMatches, mut reader: Reader) -> Self {
-        let mut input_file_paths = vec![String::from(matches.value_of("input-files").unwrap())];
-        let extractor = Self::next_extractor(&mut input_file_paths).unwrap();
-        reader.init(extractor);
+    pub async fn new(matches: &ArgMatches) -> Self {
+        let paths = vec![String::from(matches.value_of("input-files").unwrap())];
+        let rdr = reader::Reader::new(&matches);
         Self {
-            input_file_paths,
-            reader,
+            file_paths: paths,
+            reader: rdr,
         }
     }
 
     pub fn cmd_args() -> CmdArg {
-        CmdArg::new(vec![CmdArgEntry::new(
+        let mut arg_entries = vec![];
+        arg_entries.push(CmdArgEntry::new(
             "input-files",
             "input file paths or '-' for stdin",
             "input-files",
             true,
-            True,
-        )])
+            ArgRequired::True,
+        ));
+        arg_entries.extend_from_slice(&reader::Reader::cmd_args().entries());
+        CmdArg::new(arg_entries)
     }
 
-    fn next_extractor(paths: &mut Vec<String>) -> Option<Box<dyn Read>> {
-        if let Some(next_file) = paths.pop() {
-            if next_file == "-" {
-                Some(Box::new(io::stdin()))
-            } else {
-                Some(Box::new(File::open(next_file.as_str()).unwrap()))
-            }
+    pub fn file_paths(&self) -> Vec<String> {
+        self.file_paths.clone()
+    }
+
+    pub fn reader(&self) -> reader::Reader {
+        self.reader.clone()
+    }
+
+    fn get_file(path: &str) -> Box<dyn Read + Send> {
+        if path == "-" {
+            Box::new(io::stdin())
         } else {
-            None
+            Box::new(File::open(path).unwrap())
         }
     }
 
-    pub fn batch_extractor(&mut self) -> Option<Box<dyn Read>> {
-        Self::next_extractor(&mut self.input_file_paths)
-    }
-}
+    pub fn extract(&self, mut tx: mpsc::UnboundedSender<RecordBatch>) -> impl Future<Output = Result<(), GenericError>> {
+        let rdr = self.reader();
+        let file_paths = self.file_paths();
+        // ToDo: check if len(file_paths) > 1 and file_paths not contain '-'
+        let mut file_paths_stream = stream::iter(file_paths);
 
-impl Iterator for Extractor {
-    type Item = RecordBatch;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if let Some(batch) = self.reader.next() {
-            return Some(batch);
-        } else {
-            loop {
-                if let Some(extractor) = self.batch_extractor() {
-                    self.reader.init(extractor);
-                    if let Some(batch) = self.reader.next() {
-                        return Some(batch);
+        async move {
+            while let Some(path) = file_paths_stream.next().await {
+                let file = Self::get_file(&path);
+                let mut reader_stream = rdr.stream(file);
+                while let Some(res) = reader_stream.next().await {
+                    if let Ok(rec) = res {
+                        if let Err(_) = tx.send(rec).await {
+                            return Err(GenericError { message: String::from("mpsc send error") })
+                        }
                     } else {
-                        continue;
+                        return Err(GenericError { message: String::from("read stream error") })
                     }
-                } else {
-                    return None;
                 }
             }
+            Ok(())
         }
     }
 }

@@ -7,6 +7,7 @@ use parquet::{
     arrow::arrow_writer::ArrowWriter, basic::Compression, file::properties::WriterProperties,
 };
 
+#[derive(Clone)]
 pub struct Writer {
     properties: WriterProperties,
     file_extension: String,
@@ -40,7 +41,8 @@ impl Writer {
         &self.file_extension
     }
 
-    pub fn write_batch(&self, batch: RecordBatch, cursor: &WriteableCursor) {
+    pub fn write(&self, cursor: &WriteableCursor, batch: RecordBatch) {
+        // async writer not supported yet: https://github.com/apache/arrow-rs/issues/1269
         let mut writer = ArrowWriter::try_new(
             cursor.try_clone().unwrap(),
             batch.schema(),

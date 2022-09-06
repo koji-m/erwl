@@ -2,25 +2,26 @@
 name = "erwl"
 version = "0.0.1"
 edition = "2021"
+build = "build.rs"
 
 [features]
-sync-extractor = []
-async-extractor = []
-sync-loader = []
-async-loader = []
-sync-reader = []
-async-reader = []
-sync-writer = []
-async-writer = []
-extractor-local = ["sync-extractor"]
-reader-csv = ["sync-reader"]
-reader-json = ["sync-reader"]
-writer-parquet = ["parquet", "sync-writer"]
-writer-csv = ["sync-writer"]
-writer-json = ["sync-writer"]
-loader-s3 = ["aws-config", "aws-sdk-s3", "aws-types", "async-loader"]
-loader-gcs = ["google-cloud-auth", "reqwest", "async-loader"]
-loader-local = ["sync-loader"]
+extractor = []
+loader = []
+reader = []
+writer = []
+extractor-dummy = ["extractor"]
+extractor-local = ["extractor"]
+extractor-mysql = ["extractor", "mysql" ]
+extractor-js = ["deno_core", "nix", "tempfile", "extractor"]
+reader-csv = ["reader"]
+reader-json = ["reader"]
+writer-parquet = ["parquet", "writer"]
+writer-csv = ["writer"]
+writer-json = ["writer"]
+loader-dummy = ["loader"]
+loader-s3 = ["aws-config", "aws-sdk-s3", "aws-types", "loader"]
+loader-gcs = ["google-cloud-auth", "reqwest", "loader"]
+loader-local = ["loader"]
 
 [dependencies]
 aws-config = { version = "0.12.0", optional = true }
@@ -28,9 +29,20 @@ aws-sdk-s3 = { version = "0.12.0", optional = true }
 aws-types = { version = "0.12.0", optional = true }
 arrow = { version = "15.0.0" }
 clap = "3"
+futures = { version = "0.3.21" }
+futures-core = { version = "0.3.21" }
 parquet = {version = "15.0.0", optional = true }
 serde = { version = "1.0.137", features = ["derive"] }
 serde_json = { version = "1.0.81" }
+mysql = { version = "22.2.0", optional = true }
 google-cloud-auth = { version = "0.2.0", optional = true }
 reqwest = { version = "0.11.10", optional = true }
 tokio = { version = "1", features = ["full"] }
+deno_core = { version = "0.139.0", optional = true }
+nix = { version = "0.24.1", optional = true }
+tempfile = { version = "3.3.0", optional = true }
+
+[build-dependencies]
+zip = { version = "0.6.2", default-features = false, features = ["deflate"] }
+tokio = { version = "1", features = ["full"] }
+reqwest = "0.11.11"
