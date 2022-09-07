@@ -12,7 +12,6 @@ use aws_sdk_s3::{
 use clap::ArgMatches;
 use futures::channel::mpsc;
 use std::future::Future;
-use tokio::runtime::Runtime;
 
 pub struct Loader {
     config: aws_types::sdk_config::SdkConfig,
