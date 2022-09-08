@@ -1,27 +1,17 @@
 use crate::cli::CmdArg;
-use crate::reader::Reader;
 use crate::util::WriteableCursor;
 use arrow::json::writer::LineDelimitedWriter;
+use arrow::record_batch::RecordBatch;
 use clap::ArgMatches;
 
+#[derive(Clone)]
 pub struct Writer {
-    reader: Reader,
     file_extension: String,
 }
 
 impl Writer {
-    #[cfg(not(feature = "async-reader"))]
-    pub fn new(_matches: &ArgMatches, reader: Reader) -> Self {
+    pub fn new(_matches: &ArgMatches) -> Self {
         Self {
-            reader,
-            file_extension: String::from("json"),
-        }
-    }
-
-    #[cfg(feature = "async-reader")]
-    pub async fn new(_matches: &ArgMatches, reader: Reader) -> Self {
-        Self {
-            reader,
             file_extension: String::from("json"),
         }
     }
@@ -33,9 +23,17 @@ impl Writer {
     pub fn file_extension(&self) -> &String {
         &self.file_extension
     }
+
+    pub fn write(&self, cursor: &WriteableCursor, batch: RecordBatch) {
+        let mut writer = LineDelimitedWriter::new(
+            cursor.try_clone().unwrap(),
+        );
+        writer.write(batch).expect("Writing batch");
+        writer.finish().unwrap();
+    }
 }
 
-impl Iterator for Writer {
+/*impl Iterator for Writer {
     type Item = WriteableCursor;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -50,3 +48,4 @@ impl Iterator for Writer {
         }
     }
 }
+*/

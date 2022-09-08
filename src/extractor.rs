@@ -1,7 +1,7 @@
-#[cfg(feature = "extractor-file")]
-mod file;
-#[cfg(feature = "extractor-file")]
-pub use file::Extractor;
+#[cfg(feature = "extractor-local")]
+mod local;
+#[cfg(feature = "extractor-local")]
+pub use local::Extractor;
 
-#[cfg(not(any(feature = "sync-extractor", feature = "async-extractor")))]
+#[cfg(not(feature = "extractor"))]
 compile_error!("feature extractor-* not enabled.");

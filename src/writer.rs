@@ -11,5 +11,5 @@ mod json;
 #[cfg(feature = "writer-json")]
 pub use crate::writer::json::Writer;
 
-#[cfg(not(any(feature = "sync-writer", feature = "async-writer")))]
+#[cfg(not(feature = "writer"))]
 compile_error!("feature writer-* not enabled.");

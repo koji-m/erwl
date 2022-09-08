@@ -1,25 +1,20 @@
 use crate::cli::{ArgRequired::False, CmdArg, CmdArgEntry, DefaultValue};
-use crate::reader::Reader;
+use crate::util::WriteableCursor;
+use arrow::record_batch::RecordBatch;
 use clap::ArgMatches;
 
 use parquet::{
-    arrow::arrow_writer::ArrowWriter,
-    basic::Compression,
-    file::{
-        properties::WriterProperties,
-        writer::{InMemoryWriteableCursor, TryClone},
-    },
+    arrow::arrow_writer::ArrowWriter, basic::Compression, file::properties::WriterProperties,
 };
 
+#[derive(Clone)]
 pub struct Writer {
     properties: WriterProperties,
-    reader: Reader,
     file_extension: String,
 }
 
 impl Writer {
-    #[cfg(not(feature = "async-reader"))]
-    pub fn new(matches: &ArgMatches, reader: Reader) -> Self {
+    pub fn new(matches: &ArgMatches) -> Self {
         let compression = match matches.value_of("compression").unwrap() {
             "snappy" => Compression::SNAPPY,
             _ => Compression::SNAPPY,
@@ -28,22 +23,6 @@ impl Writer {
             properties: WriterProperties::builder()
                 .set_compression(compression)
                 .build(),
-            reader,
-            file_extension: String::from("parquet"),
-        }
-    }
-
-    #[cfg(feature = "async-reader")]
-    pub async fn new(matches: &ArgMatches, reader: Reader) -> Self {
-        let compression = match matches.value_of("compression").unwrap() {
-            "snappy" => Compression::SNAPPY,
-            _ => Compression::SNAPPY,
-        };
-        Self {
-            properties: WriterProperties::builder()
-                .set_compression(compression)
-                .build(),
-            reader,
             file_extension: String::from("parquet"),
         }
     }
@@ -61,25 +40,16 @@ impl Writer {
     pub fn file_extension(&self) -> &String {
         &self.file_extension
     }
-}
 
-impl Iterator for Writer {
-    type Item = InMemoryWriteableCursor;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if let Some(batch) = self.reader.next() {
-            let cursor = InMemoryWriteableCursor::default();
-            let mut writer = ArrowWriter::try_new(
-                cursor.try_clone().unwrap(),
-                batch.schema(),
-                Some(self.properties.clone()),
-            )
-            .unwrap();
-            writer.write(&batch).expect("Writing batch");
-            writer.close().unwrap();
-            Some(cursor)
-        } else {
-            None
-        }
+    pub fn write(&self, cursor: &WriteableCursor, batch: RecordBatch) {
+        // async writer not supported yet: https://github.com/apache/arrow-rs/issues/1269
+        let mut writer = ArrowWriter::try_new(
+            cursor.try_clone().unwrap(),
+            batch.schema(),
+            Some(self.properties.clone()),
+        )
+        .unwrap();
+        writer.write(&batch).expect("Writing batch");
+        writer.close().unwrap();
     }
 }

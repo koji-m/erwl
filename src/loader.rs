@@ -6,6 +6,10 @@ pub use s3::Loader;
 mod gcs;
 #[cfg(feature = "loader-gcs")]
 pub use gcs::Loader;
+#[cfg(feature = "loader-local")]
+mod local;
+#[cfg(feature = "loader-local")]
+pub use local::Loader;
 
-#[cfg(not(any(feature = "sync-loader", feature = "async-loader")))]
+#[cfg(not(feature = "loader"))]
 compile_error!("feature loader-* not enabled.");

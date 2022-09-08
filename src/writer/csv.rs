@@ -1,51 +1,46 @@
-use crate::cli::{ArgRequired::False, CmdArg, CmdArgEntry, DefaultValue};
-use crate::reader::Reader;
+use crate::cli::{ArgRequired, CmdArg, CmdArgEntry, DefaultValue};
 use crate::util::WriteableCursor;
 use arrow::csv::writer::WriterBuilder;
+use arrow::record_batch::RecordBatch;
 use clap::ArgMatches;
 
+#[derive(Clone)]
 pub struct Writer {
-    reader: Reader,
     file_extension: String,
-    headers: bool,
+    has_header: bool,
 }
 
 impl Writer {
-    #[cfg(not(feature = "async-reader"))]
-    pub fn new(matches: &ArgMatches, reader: Reader) -> Self {
-        let headers = matches.is_present("headers");
+    pub fn new(matches: &ArgMatches) -> Self {
+        let has_header = matches.is_present("output-csv-header");
         Self {
-            reader,
             file_extension: String::from("csv"),
-            headers,
-        }
-    }
-
-    #[cfg(feature = "async-reader")]
-    pub async fn new(matches: &ArgMatches, reader: Reader) -> Self {
-        let headers = matches.is_present("headers");
-        Self {
-            reader,
-            file_extension: String::from("csv"),
-            headers,
+            has_header,
         }
     }
 
     pub fn cmd_args() -> CmdArg {
         CmdArg::new(vec![CmdArgEntry::new(
-            "headers",
-            "Write headers",
-            "headers",
+            "output-csv-header",
+            "Output CSV has header",
+            "output-csv-header",
             false,
-            False(DefaultValue::Bool(false)),
+            ArgRequired::False(DefaultValue::Bool(false)),
         )])
     }
 
     pub fn file_extension(&self) -> &String {
         &self.file_extension
     }
+
+    pub fn write(&self, cursor: &WriteableCursor, batch: RecordBatch) {
+        let builder = WriterBuilder::new().has_headers(self.has_header);
+        let mut writer = builder.build(cursor.try_clone().unwrap());
+        writer.write(&batch).expect("Writing batch");
+    }
 }
 
+/*
 impl Iterator for Writer {
     type Item = WriteableCursor;
 
@@ -61,3 +56,4 @@ impl Iterator for Writer {
         }
     }
 }
+*/

@@ -7,5 +7,5 @@ mod csv;
 #[cfg(feature = "reader-csv")]
 pub use csv::Reader;
 
-#[cfg(not(any(feature = "sync-reader", feature = "async-reader")))]
+#[cfg(not(feature = "reader"))]
 compile_error!("feature reader-* not enabled.");
