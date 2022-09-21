@@ -19,7 +19,7 @@ async fn main() {
 
     let m = cmd.get_matches();
 
-    let extractor = extractor::Extractor::new(&m).await;
+    let extractor = extractor::Extractor::new(&m);
     let loader = loader::Loader::new(&m).await;
 
     let (tx, rx) = futures::channel::mpsc::unbounded();

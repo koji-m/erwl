@@ -15,7 +15,7 @@ pub struct Extractor {
 }
 
 impl Extractor {
-    pub async fn new(matches: &ArgMatches) -> Self {
+    pub fn new(matches: &ArgMatches) -> Self {
         let paths = vec![String::from(matches.value_of("input-files").unwrap())];
         let rdr = reader::Reader::new(&matches);
         Self {

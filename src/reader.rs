@@ -6,6 +6,3 @@ pub use json::Reader;
 mod csv;
 #[cfg(feature = "reader-csv")]
 pub use csv::Reader;
-
-#[cfg(not(feature = "reader"))]
-compile_error!("feature reader-* not enabled.");
